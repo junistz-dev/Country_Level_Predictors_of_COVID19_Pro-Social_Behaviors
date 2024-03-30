@@ -1,0 +1,237 @@
+---
+title: "JuneJin31994695"
+author: 'June Jin - 31994695'
+date: "2024-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Documents/Monash University/FIT 3152 Data Analysis/Assignment 1")
+library(ggplot2)
+library(dplyr)
+
+rm(list = ls())
+set.seed(31994695)
+cvbase = read.csv("PsyCoronaBaselineExtract.csv")
+cvbase <- cvbase[sample(nrow(cvbase),40000),]
+
+```
+
+## Question 1 - a
+
+### Overall Data
+Upon examining the data in cvbase, it's evident that the dataframe consists of 40,000 rows and 52 columns. The data types include both integers and characters.
+
+1. **Binary Input for Conditions:** Users input '1' for the conditions that apply to them and 'NA' for those that do not. For instance, in fields like "Employment status" or "Corona Proximity," where there are optional selections, users would input '1' for their applicable condition and 'NA' for others.
+2. **Numeric Input within a Restricted Range:** Users input numeric values that appropriately represent their status or condition within a predefined range. For instance, if a feature allows values between 1 and 5, users would input a number that reflects their situation within that range.
+
+For the chr data type, it is used in two main contexts:
+
+1. **String Input for rankOrdLife:** String values are used to represent rankings, particularly in contexts like "rankOrdLife."
+2. **String Input for Country Representation:** String values are used to represent countries. For example, users might input "Korea" to represent South Korea or any other country name to denote their country.
+
+### Distribution of numerical attributes
+
+Using **`summary(cvbase)`**, you can obtain the mean, median, maximum, and minimum values.
+
+### Variety of non-numerical (text) attributes
+
+1. `rankOrdLife` ranges from 'A' to 'F', and there are also NA values present.
+2. It is evident that there are a total of 110 different countries represented in the dataset.
+
+In cvbase, missing values serve two purposes:
+
+1. **No Need to Select:** This indicates that users don't need to select a particular option because they have already chosen "1" in another section. For example, in the "employstatus" field, users need to choose only one variable among 10 selections based on their employment status. Therefore, if they have already selected one option, there should be 9 NA values to signify that the other options are not applicable.
+2. **Truth of Missing Values:** These NA values represent truly missing data, indicating instances where the information is genuinely unavailable or not provided.
+
+```{r}
+dim(cvbase)
+
+str(cvbase)
+
+summary(cvbase)
+```
+## Question 1 - b
+
+- Missing values can make data analysis challenging, necessitating pre-processing or modification. Initially, in the cvbase dataset [1:10], where NA values are present, it is feasible to replace them with 0 without encountering any issues (code).
+- However, for attributes like Isolation offline/offline, Loneliness, Life Satisfaction, etc., replacing NA with 0 could significantly impact the existing numerical values. Therefore, after using summary() to determine their median values, NA values can be replaced with the median to mitigate substantial effects on the original data.
+- For attributes like Rank Order Life, where data is represented as characters (e.g., A, B, ..., F) with NA values, it may be necessary to convert alphabetic characters to numeric equivalents.
+- If NA values exist in the coded_country variable, it is advisable to exclude them during data analysis to avoid potential issues. However, it has been confirmed that there are no NA values present in coded_country currently, so this step can be skipped without complications**.**
+```{r}
+# remove the row if the country is blank
+cvbase_filter_country <- cvbase[!cvbase$coded_country == '',]
+
+# Pre-processing session based on column type
+preprocessed_data <- function(data) {
+  for (i in 1:ncol(data)) {
+    column <- data[[i]]
+    if (i %in% 1:10) {
+      # the NA value in column [1:10] will be 0
+      column[is.na(column)] <- 0
+    } else if (i %in% 11:26) {
+      # the NA value in column [11:24] will be median of their value
+      median_val <- median(column, na.rm = TRUE)
+      column[is.na(column)] <- median_val
+    } else if (i %in% 33:38) {
+      # the NA value in column [33:38] will be median of their value
+      median_val <- median(column, na.rm = TRUE)
+      column[is.na(column)] <- median_val
+    } else if (i %in% 39:44) {
+      # the NA value in column [39:44] will be 0
+      column[is.na(column)] <- 0
+    } else if (i %in% 44:47) {
+      # the NA value in column [45:47] will be median of their value
+      median_val <- median(column, na.rm = TRUE)
+      column[is.na(column)] <- median_val
+    } else if (i %in% 49:52) {
+      # the NA value in column [49:52] will be median of their value
+      median_val <- median(column, na.rm = TRUE)
+      column[is.na(column)] <- median_val
+    }
+    data[[i]] <- column
+  }
+  return(data)
+}
+
+# Pre-processing done for int
+cvbase_updated <- preprocessed_data(cvbase_filter_country)
+
+# Change Chr(A~F) to 1~6 int
+cvbase_updated[27:32] <- lapply(cvbase_updated[27:32], function(x) ifelse(is.na(x), NA, match(x, LETTERS)))
+
+preprocessed_data2 <- function(data) {
+  # make it NA to median which column is [27:32]
+  data[, 27:32] <- lapply(data[, 27:32], function(x) {
+    median_val <- median(x, na.rm = TRUE)
+    replace(x, is.na(x), median_val)
+  })
+  
+  return(data)
+}
+  
+cvbase_final <- preprocessed_data2(cvbase_updated)
+
+head(cvbase_final)
+```
+## Question 2 - a
+
+```{r}
+Q2_sample <- cvbase_final
+
+Q2_sample_for_italy = Q2_sample %>% filter(Q2_sample$coded_country == 'Italy')
+
+summary(Q2_sample_for_italy)
+
+Q2_sample_not_italy = Q2_sample %>% filter(Q2_sample$coded_country != 'Italy')
+
+summary(Q2_sample_not_italy)
+
+# Coded_Country 열을 제외한 모든 열을 integer로 변환
+Q2_sample_for_italy <- Q2_sample_for_italy %>%
+  mutate_if(function(x) !is.character(x), as.integer)
+
+
+Q2_sample_for_italy <- subset(Q2_sample_for_italy, select = -coded_country)
+
+Q2_sample_not_italy <- subset(Q2_sample_not_italy, select = -coded_country)
+
+mean_data_italy <- colMeans(Q2_sample_for_italy)
+
+mean_data_non_italy <- colMeans(Q2_sample_not_italy)
+
+mean_diff <- mean_data_italy - mean_data_non_italy
+
+diff_table <- data.frame(
+  Attribute = names(mean_diff),
+  Mean_Difference = mean_diff)
+
+# Attribute 열을 요인(factor) 변수로 변환하고 순서를 지정
+diff_table$Attribute <- factor(diff_table$Attribute, levels = unique(diff_table$Attribute))
+
+# 가장 작은 5개의 값과 해당 값의 속성
+smallest_values <- diff_table[order(diff_table$Mean_Difference), ][1:5, ]
+
+smallest_values
+
+# 가장 큰 5개의 값과 해당 값의 속성
+largest_values <- diff_table[order(diff_table$Mean_Difference, decreasing = TRUE), ][1:5, ]
+
+largest_values
+
+# ggplot2 그래프 생성
+comparison_plot <- ggplot(diff_table, aes(x = Attribute, y = Mean_Difference)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.5) +
+  labs(title = "Difference in Mean Values between Italy and Non-Italy",
+       x = "Attribute",
+       y = "Mean Difference (italy - non italy)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5))
+```
+
+### Q2 - a Difference value in mean between italy and non-italy
+
+For finding the big difference between those two, I tried to make the graph, between italy and non-italy.
+
+I could find the attribute which has the most biggest gap between italy and non-italy
+
+``` {r}
+comparison_plot
+```
+
+### Italy 가 더 큰 값을 가지고 있는 부분
+isoFriends_online   0.9103630		>> Italy는 평균 5.924명을 일주일에 온라인으로 친구나 가족들과 contact 했다고 나왔다. Non-Italy의 평균값 4.384인데, 이는 모든 차이들 중에 가장 큰 차이를 보인다. 
+c19ProSo04        	0.5960022		>> Italy의 국민들은 코로나 확산 방지를 위해 자신의 개인적인 희생을 하겠다는 답변에 평균 1.865점이 나왔다. 이는 Non-Italy가 1.269가 나온 것에 비해 큰 차이를 보인다. 따라서 이탈리아의 국민들은 다른 국민들에 비해 자신을 좀 더 기꺼이 희생하겠다는 면을 찾을 수 있다, 둘의 차이는 0.59로 두번째로 큰 차이를 보인다.
+
+rankOrdLife 1 ~ 6 -> 3이 평균 4.7로 가장 크게 나왔다 >>Victory 를 가장 우선시 함. / 5가 평균 2.11점으로 가장 적게 나온다. Love를 가장 낮은 거로 적음 평균적으로
+  ! Italy         -> 3이 평균 4.7로 가장 크게 나왔다 >>Victory 를 가장 우선시 함. / 5가 평균 2.13점으로 가장 적게 나옴.. 이게 뭐야
+
+isoOthPpl_online		0.4273814		!italy 가 italy 에 비해 가장 크게 나온 차이 > 이탈리아는 3.2, 친구나 가족 말고 다른 사람, italy : 3.243명, non-italy : 2.816명. 그러니까 이탈리아 사람들은 다른 국가 사람들에 비해 평균적으로 0.42명 정도 다른 사람들과 더 contact 하는 것으로 나타남. 따라서 전반적으로 이탈리아는 다른 나라들에 비해 보통 사람들과의 컨택이 정말 많은 듯 싶다.
+
+c19RCA01            0.3855874	>> mandatory vaccinaction one a vaccine has been developed. 에서 1.6점이 나왔다.agree에 가까운 점수. 이는 다른 국가들의 점수 1.262에 비해 조금 큰 차이를 나타냄.
+
+
+### !Italy 가 더 큰값을 가지고 있는 부분
+isoOthPpl_inPerson	-0.8111854		>> 다른 국가 국민들이 이탈리아 사람들의 국민들보다 평균적으로 대면 컨택을 한 사람이 더 많았단 것을 0.81명의 차이로 볼 수 있다. 이탈리아는 1.151이 나왔고, 그외 다른 국민들의 평균값은 1.963
+isoFriends_inPerson	-0.6145580		>> 1.461 in italy, 2.075 in non-italy 따라서, 다른 국가 국민들이 이탈리아 국민들에 비해 대면으로 가족/친구들과의 컨택이 더 많았고 이는 평균적으로 한 주에 0.61명 정도의 차이가 있음을 확인할 수 있다.
+
+## Question 2 - b
+```{R}
+c19_italy <-colMeans(Q2_sample_for_italy[48:51])
+
+italy_table <- data.frame(
+  Attribute = names(c19_italy),
+  Mean_value = c19_italy)
+
+Q2_b_table <- ggplot(italy_table, aes(x = Attribute, y = Mean_value)) +
+  geom_bar(stat = "identity", fill = "grey", width = 0.5) +
+  geom_text(aes(label = sprintf("%.2f", Mean_value)), vjust = -0.5, size = 3) +  # 숫자를 소수점 둘째 자리까지 표시
+  labs(title = "Average Value for Corona ProSocial Behavior",
+       x = "Attribute", y = "Value") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5))
+
+Q2_b_table
+
+attach(Q2_sample_for_italy)
+
+```
+Italy 의 결과를 보면
+c19ProSo01 : "I am willing to help others who suffer from coronavirus." 에서 평균 0.8 "somewhat agree" 에 가까운 결과를 볼 수 있었다.
+따라서 이탈리아 국민들은 코로나 바이러스에 대해 고통받는 사람들에 대해 조금은 기꺼이 도울 마음이 있는 것을 확인할 수 있다.
+
+c19ProSo02 : "I am willing to make donations to help others that suffer from coronavirus." 에서 평균 0.79, c19ProSo01과 거의 유사한 점수를 확인할 수 있었다. 따라서 이탈리아 국민들은 코로나 바이러스로부터 고통받는 사람들에게 기부를 할 의향이 있는 것으로 보여진다.
+
+c19ProSo03 : "I am willing to protect vulnerable groups from coronavirus even at my own expense." 에서 평균 0.47, 조금은 중립적인 점수를 확인할 수 있었다. 사실 이 부분이 02 번과 같이 연관을 짓는 부분에서 이해가 잘 안간다. 기부는 하고 싶은데.. 자비를 들여서라도 취약계층을 보호하는데는 점수가 낮다.
+
+c19ProSo04 : " I am willing to make personal sacrifices to prevent the spread of coronavirus." 에서 가장 높은 점수인 1.86을 보였다, 이는 Agree 에 가까운 점수이며, 그러므로 이탈리아 국민들은 코로나 확산을 방지하기 위해 개인적인 희생 (백신 접종)에 대해서 긍정적인 모습을 보인다.
+
+
+```{R}
+Q2_italy<- lm(c19ProSo01 + c19ProSo02 + c19ProSo03 + c19ProSo04 ~ . ,data = Q2_sample_for_italy)
+
+summary(Q2_italy)
+```
+C19perBeh01과 c19RCA01이 가장 작은 P-value 값을 보이고 있으므로, 이는 가장 best predictors 라고 할 수 있다.
+그 다음으로는, bor03 과 edu 가 그 다음 작은 값을 보이므로 (아직 0.05보다 작은 값을 유지하기 때문에) 유효한 predictor 라고 볼 수 있다.
+그 다음으로는, employstatus_10, MLQ, c19perBeh02, C19perBeh03 이 0.05보다 작은 값을 가지기 때문에 유효한 값이라고 볼 수 있다.
